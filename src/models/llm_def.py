@@ -10,6 +10,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, AutoTokenizer, Bit
 import torch
 import openai
 import os
+import subprocess
 from openai import OpenAI
 
 # Set proxy for requests
@@ -251,6 +252,27 @@ class DeepSeek(BaseEngine):
             stop=None
         )
         return response.choices[0].message.content
+
+class OpenCode(BaseEngine):
+    def __init__(self, model_name_or_path: str):
+        self.name = "OpenCode"
+        self.model = model_name_or_path
+        self.temperature = 0.2
+        self.top_p = 0.9
+        self.max_tokens = 4096
+        self.binary = os.getenv("OPENCODE_BIN", "opencode")
+
+    def get_chat_response(self, input):
+        command = [self.binary, "run", "-m", self.model, input]
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"OpenCode failed: {result.stderr.strip()}")
+        return result.stdout.strip()
 
 class LocalServer(BaseEngine):
     def __init__(self, model_name_or_path: str, base_url="http://localhost:8000/v1"):
